@@ -1,0 +1,200 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Enums
+enum UserRole {
+  ADMIN
+  STAFF
+  VOLUNTEER
+  ADOPTER
+}
+
+enum AnimalStatus {
+  AVAILABLE
+  ADOPTED
+  MEDICAL_HOLD
+  BEHAVIORAL_HOLD
+  PENDING_ADOPTION
+  DECEASED
+}
+
+enum Species {
+  DOG
+  CAT
+  RABBIT
+  BIRD
+  OTHER
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  UNKNOWN
+}
+
+enum AdoptionStatus {
+  PENDING
+  APPROVED
+  COMPLETED
+  REJECTED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  REFUNDED
+}
+
+// Core Models
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  role      UserRole @default(ADOPTER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  volunteer Volunteer?
+  adoptions Adoption[]
+
+  @@map("users")
+}
+
+model Animal {
+  id           String       @id @default(cuid())
+  name         String
+  species      Species
+  breed        String
+  age          Int
+  gender       Gender
+  intakeDate   DateTime     @default(now())
+  status       AnimalStatus @default(AVAILABLE)
+  adoptionFee  Float        @default(0)
+  microchipId  String?      @unique
+  behaviorNotes String?
+  specialNeeds String[]
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  // Relations
+  medicalRecords MedicalRecord[]
+  photos         Photo[]
+  adoptions      Adoption[]
+
+  @@map("animals")
+}
+
+model Volunteer {
+  id               String   @id @default(cuid())
+  userId           String   @unique
+  firstName        String
+  lastName         String
+  phone            String?
+  address          String?
+  emergencyContact String?
+  skills           String[]
+  availability     String[]
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  // Relations
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  volunteerHours VolunteerHour[]
+  assignments    Assignment[]
+
+  @@map("volunteers")
+}
+
+model Adoption {
+  id              String          @id @default(cuid())
+  animalId        String
+  adopterId       String
+  applicationDate DateTime        @default(now())
+  approvalDate    DateTime?
+  completionDate  DateTime?
+  status          AdoptionStatus  @default(PENDING)
+  adoptionFee     Float
+  paymentStatus   PaymentStatus   @default(PENDING)
+  notes           String?
+  followUpDate    DateTime?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  // Relations
+  animal  Animal @relation(fields: [animalId], references: [id], onDelete: Restrict)
+  adopter User   @relation(fields: [adopterId], references: [id], onDelete: Restrict)
+
+  @@map("adoptions")
+}
+
+model MedicalRecord {
+  id          String   @id @default(cuid())
+  animalId    String
+  recordType  String   // vaccination, treatment, checkup, etc.
+  description String
+  veterinarian String?
+  cost        Float?
+  recordDate  DateTime @default(now())
+  createdAt   DateTime @default(now())
+
+  // Relations
+  animal Animal @relation(fields: [animalId], references: [id], onDelete: Cascade)
+
+  @@map("medical_records")
+}
+
+model Photo {
+  id        String   @id @default(cuid())
+  animalId  String
+  url       String
+  caption   String?
+  isPrimary Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  // Relations
+  animal Animal @relation(fields: [animalId], references: [id], onDelete: Cascade)
+
+  @@map("photos")
+}
+
+model VolunteerHour {
+  id          String   @id @default(cuid())
+  volunteerId String
+  date        DateTime
+  hours       Float
+  activity    String
+  notes       String?
+  createdAt   DateTime @default(now())
+
+  // Relations
+  volunteer Volunteer @relation(fields: [volunteerId], references: [id], onDelete: Cascade)
+
+  @@map("volunteer_hours")
+}
+
+model Assignment {
+  id          String   @id @default(cuid())
+  volunteerId String
+  title       String
+  description String?
+  scheduledDate DateTime
+  duration    Int      // minutes
+  status      String   @default("scheduled")
+  createdAt   DateTime @default(now())
+
+  // Relations
+  volunteer Volunteer @relation(fields: [volunteerId], references: [id], onDelete: Cascade)
+
+  @@map("assignments")
+}
